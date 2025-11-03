@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Text } from '@deriv/components';
 import { Localize } from '@deriv/translations';
 import { useDevice } from '@deriv-com/ui';
@@ -18,8 +18,10 @@ const Disclaimer = () => {
 
     const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
         if (!isDesktop) return;
-
+        
         e.preventDefault();
+        e.stopPropagation();
+        
         if (!containerRef.current) return;
         const rect = containerRef.current.getBoundingClientRect();
         setDragOffset({
@@ -29,22 +31,21 @@ const Disclaimer = () => {
         setIsDragging(true);
     };
 
-    const handleMouseMove = (e: MouseEvent) => {
-        if (!isDragging || !isDesktop) return;
-
+    const handleMouseMove = useCallback((e: MouseEvent) => {
+        if (!isDragging || !isDesktop || !containerRef.current) return;
+        
         const newX = e.clientX - dragOffset.x;
         const newY = e.clientY - dragOffset.y;
 
         // Ensure the container stays within viewport bounds
-        if (!containerRef.current) return;
-        const maxX = window.innerWidth - containerRef.current.offsetWidth;
-        const maxY = window.innerHeight - containerRef.current.offsetHeight;
+        const maxX = window.innerWidth - containerRef.current.offsetWidth - 10; // 10px margin
+        const maxY = window.innerHeight - containerRef.current.offsetHeight - 10; // 10px margin
 
         setPosition({
-            x: Math.max(0, Math.min(newX, maxX)),
-            y: Math.max(0, Math.min(newY, maxY))
+            x: Math.max(10, Math.min(newX, maxX)),
+            y: Math.max(10, Math.min(newY, maxY))
         });
-    };
+    }, [isDragging, isDesktop, dragOffset]);
 
     const handleMouseUp = () => {
         setIsDragging(false);
@@ -122,17 +123,21 @@ const Disclaimer = () => {
         <div
             ref={containerRef}
             className={`disclaimer-container ${isMobile ? 'disclaimer-container--mobile' : 'disclaimer-container--desktop'} ${isDragging ? 'disclaimer-container--dragging' : ''}`}
-            style={(isMobile || isDesktop) ? {
+            style={{
+                position: 'fixed',
+                left: 0,
+                top: 0,
                 transform: `translate(${position.x}px, ${position.y}px)`,
-                transition: isDragging ? 'none' : 'transform 0.2s ease'
-            } : {}}
+                transition: isDragging ? 'none' : 'transform 0.2s ease',
+                zIndex: 9999,
+                cursor: isDragging ? 'grabbing' : 'grab'
+            }}
             onTouchStart={handleTouchStart}
             onTouchMove={handleTouchMove}
             onTouchEnd={handleTouchEnd}
         >
             <div
                 className={`disclaimer-header ${isMobile ? 'disclaimer-header--mobile' : 'disclaimer-header--desktop'}`}
-                onClick={toggleDisclaimer}
                 onMouseDown={isDesktop ? handleMouseDown : undefined}
                 data-testid='dt_disclaimer_header'
             >
