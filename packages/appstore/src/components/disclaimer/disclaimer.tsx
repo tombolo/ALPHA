@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Text } from '@deriv/components';
 import { Localize } from '@deriv/translations';
 import { useDevice } from '@deriv-com/ui';
@@ -13,15 +13,25 @@ const Disclaimer = () => {
     const containerRef = useRef<HTMLDivElement>(null);
 
     const toggleDisclaimer = () => {
-        setIsExpanded(!isExpanded);
+        const newExpandedState = !isExpanded;
+        setIsExpanded(newExpandedState);
+        
+        // Center the container when expanded
+        if (newExpandedState && containerRef.current) {
+            const containerWidth = containerRef.current.offsetWidth;
+            const containerHeight = containerRef.current.offsetHeight;
+            
+            setPosition({
+                x: (window.innerWidth - containerWidth) / 2,
+                y: (window.innerHeight - containerHeight) / 2
+            });
+        }
     };
 
     const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
         if (!isDesktop) return;
-        
+
         e.preventDefault();
-        e.stopPropagation();
-        
         if (!containerRef.current) return;
         const rect = containerRef.current.getBoundingClientRect();
         setDragOffset({
@@ -31,21 +41,22 @@ const Disclaimer = () => {
         setIsDragging(true);
     };
 
-    const handleMouseMove = useCallback((e: MouseEvent) => {
-        if (!isDragging || !isDesktop || !containerRef.current) return;
-        
+    const handleMouseMove = (e: MouseEvent) => {
+        if (!isDragging || !isDesktop) return;
+
         const newX = e.clientX - dragOffset.x;
         const newY = e.clientY - dragOffset.y;
 
         // Ensure the container stays within viewport bounds
-        const maxX = window.innerWidth - containerRef.current.offsetWidth - 10; // 10px margin
-        const maxY = window.innerHeight - containerRef.current.offsetHeight - 10; // 10px margin
+        if (!containerRef.current) return;
+        const maxX = window.innerWidth - containerRef.current.offsetWidth;
+        const maxY = window.innerHeight - containerRef.current.offsetHeight;
 
         setPosition({
-            x: Math.max(10, Math.min(newX, maxX)),
-            y: Math.max(10, Math.min(newY, maxY))
+            x: Math.max(0, Math.min(newX, maxX)),
+            y: Math.max(0, Math.min(newY, maxY))
         });
-    }, [isDragging, isDesktop, dragOffset]);
+    };
 
     const handleMouseUp = () => {
         setIsDragging(false);
@@ -122,22 +133,18 @@ const Disclaimer = () => {
     return (
         <div
             ref={containerRef}
-            className={`disclaimer-container ${isMobile ? 'disclaimer-container--mobile' : 'disclaimer-container--desktop'} ${isDragging ? 'disclaimer-container--dragging' : ''}`}
-            style={{
-                position: 'fixed',
-                left: 0,
-                top: 0,
+            className={`disclaimer-container ${isMobile ? 'disclaimer-container--mobile' : 'disclaimer-container--desktop'} ${isExpanded ? 'disclaimer-container--expanded' : ''} ${isDragging ? 'disclaimer-container--dragging' : ''}`}
+            style={(isMobile || isDesktop) ? {
                 transform: `translate(${position.x}px, ${position.y}px)`,
-                transition: isDragging ? 'none' : 'transform 0.2s ease',
-                zIndex: 9999,
-                cursor: isDragging ? 'grabbing' : 'grab'
-            }}
+                transition: isDragging ? 'none' : 'transform 0.2s ease'
+            } : {}}
             onTouchStart={handleTouchStart}
             onTouchMove={handleTouchMove}
             onTouchEnd={handleTouchEnd}
         >
             <div
                 className={`disclaimer-header ${isMobile ? 'disclaimer-header--mobile' : 'disclaimer-header--desktop'}`}
+                onClick={toggleDisclaimer}
                 onMouseDown={isDesktop ? handleMouseDown : undefined}
                 data-testid='dt_disclaimer_header'
             >
@@ -161,7 +168,7 @@ const Disclaimer = () => {
             {isExpanded && (
                 <div
                     data-testid='dt_traders_hub_disclaimer'
-                    className={`disclaimer-content ${isMobile ? 'disclaimer-content--mobile' : 'disclaimer-content--desktop'}`}
+                    className={`disclaimer-content ${isMobile ? 'disclaimer-content--mobile' : 'disclaimer-content--desktop'} ${isExpanded ? 'disclaimer-content--expanded' : ''}`}
                 >
                     <Text align='left' className='disclaimer-text' size={isMobile ? 'xxxs' : 'xxs'}>
                         <Localize i18n_default_text='Deriv offers complex derivatives, such as options and contracts for difference ("CFDs"). These products may not be suitable for all clients, and trading them puts you at risk. Please make sure that you understand the following risks before trading Deriv products: a) you may lose some or all of the money you invest in the trade, b) if your trade involves currency conversion, exchange rates will affect your profit and loss. You should never trade with borrowed money or with money that you cannot afford to lose.' />
